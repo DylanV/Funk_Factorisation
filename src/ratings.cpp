@@ -31,6 +31,7 @@ vector<string> Ratings::split(const string &str, char delim)
 
 void Ratings::RemapRatingIds()
 {
+
     unordered_map<int, int> user_ids_map;
     unordered_map<int, int> item_ids_map;
 
@@ -57,40 +58,52 @@ void Ratings::RemapRatingIds()
 
 }
 
-void Ratings::CalculateUserStats()
+void Ratings::CalculateStats()
 {
-    // Get user total rating sum and rating counts
-    vector<double> user_totals(userIds.size(), 0);
-    vector<int> user_counts(userIds.size(), 0);
+    vector<double> item_sums(numItems);
+    vector<int> item_counts(numItems);
 
-    for (const rating& rating : ratings){
-        int userId = rating.userId;
+    double global_total=0;
+    int global_count=0;
+
+    for(const rating& rating: ratings){
+        int itemId = rating.itemId;
         double value = rating.value;
-        user_totals[userId] += value;
+
+        item_sums[itemId] += value;
+        item_counts[itemId]++;
+
+        global_count++;
+        global_total+=value;
+    }
+
+    globalMean = global_total / global_count;
+
+    vector<double> item_means(numItems);
+
+    for(int i=0; i<numItems; i++){
+        item_means[i] = item_sums[i] / item_counts[i];
+    }
+    itemMeans = item_means;
+
+    vector<double> user_offset_sum(numUsers);
+    vector<int> user_counts(numUsers);
+
+    for(const rating& rating: ratings){
+        int userId = rating.userId;
+        int itemId = rating.itemId;
+        double value = rating.value;
+
+        user_offset_sum[userId] += value - itemMeans[itemId];
         user_counts[userId]++;
     }
 
-    // Calculate user means
-    vector<double> means(userIds.size(), 0);
-    for(int i=0; i<userIds.size(); i++){
-        means[i] = user_totals[i]/user_counts[i];
+    vector<double> user_offsets(numUsers);
+    for(int i=0; i<numUsers; i++){
+        user_offsets[i] = user_offset_sum[i]/user_counts[i];
     }
-    userMeans = means; // set the class member
+    userOffsets = user_offsets;
 
-    // Get sum of the distances from the user means for each user rating
-    vector<double> dists(userIds.size(), 0);
-    for (const rating& rating : ratings){
-        int userId = rating.userId;
-        double value = rating.value;
-        dists[userId] += fabs(value-means[userId]);
-    }
-
-    // Calculate ethe user standard deviations
-    vector<double> std_devs(userIds.size(), 0);
-    for(int i=0; i<userIds.size(); i++){
-        std_devs[i] = dists[i]/user_counts[i];
-    }
-    userStdDevs = std_devs; // set the class member
 }
 
 void Ratings::LoadRatings(string file_path, char delim = ':')
@@ -125,10 +138,14 @@ void Ratings::LoadRatings(string file_path, char delim = ':')
 
                 count++;
             }
+
         }
 
+        numUsers = int(userIds.size());
+        numItems = int(itemIds.size());
+
         RemapRatingIds(); // Remap the user and item ids to a continuous space
-        CalculateUserStats(); // Calculate the user means and standard deviations
+        CalculateStats(); // Calculate the user means and standard deviations
 
         cout << count << " ratings loaded from file: " << file_path << endl;
 
@@ -143,6 +160,10 @@ void Ratings::LoadRatings(string file_path, char delim = ':')
 
 void Ratings::SplitTestTrain(double ratio)
 {
+    if(!ratingsLoaded){
+        return;
+    }
+
     double test_set_size = floor(ratings.size() * ratio);
     set<int> test_set_rating_ids;
 
@@ -163,19 +184,22 @@ void Ratings::SplitTestTrain(double ratio)
     }
     ratings = new_ratings;
 
-    cout << testRatings.size() << " test ratings have been removed from the ratings and "
+    cout << testRatings.size() << " ratings have been moved to test from ratings and "
         << ratings.size() << " ratings remain" << endl;
 }
 
 void Ratings::AdjustRatings()
 {
-    for(rating& rating: ratings){
-        int user_id = rating.userId;
-        double user_mean = userMeans[user_id];
-        double user_std_dev = userStdDevs[user_id];
+    if(!ratingsLoaded){
+        return;
+    }
 
-        rating.value = (rating.value - user_mean)/user_std_dev;
+    for(rating& rating: ratings){
+        rating.value = rating.value - itemMeans[rating.itemId] - userOffsets[rating.userId];
     }
 
     cout << "Ratings have been normalised with user means and standard deviations" << endl;
 }
+
+
+

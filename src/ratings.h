@@ -26,12 +26,11 @@ class Ratings {
     private:
         // Variables
         static std::vector<std::string> split(const std::string &str, char delim);
-        std::vector<double> userMeans;
-        std::vector<double> userStdDevs;
 
         // Functions
         void RemapRatingIds(void);
-        void CalculateUserStats(void);
+        void CalculateStats(void);
+
 
     public:
         //Constructor
@@ -45,6 +44,13 @@ class Ratings {
 
         std::set<int> userIds;
         std::set<int> itemIds;
+
+        int numUsers;
+        int numItems;
+        double globalMean;
+
+        std::vector<double> itemMeans;
+        std::vector<double> userOffsets;
 
         // Functions
         void LoadRatings(std::string file_path, char delim);
