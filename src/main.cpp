@@ -3,14 +3,21 @@
 #include "factoriser.h"
 #include <math.h>
 
+#include <windows.h>
 
 using namespace std;
 
 int main() {
 
     cout << "Loading movielens data:" << endl;
-    Ratings ratings("/Users/dylan/Dev/masters/Funk_Factorisation/datasets/ml1m/ratings.dat", ':');
+    //osx
+//    Ratings ratings("/Users/dylan/Dev/masters/Funk_Factorisation/datasets/ml1m/ratings.dat", ':');
+
+    //Windows
 //    Ratings ratings("../datasets/ml20m/ratings.dat", ',');
+    Ratings ratings("../datasets/ml1m/ratings.dat", ':');
+
+
     cout << "Adjusting the ratings" << endl;
     ratings.AdjustRatings();
     cout << "Splitting out 10% of ratings into test set" << endl;
@@ -29,15 +36,15 @@ int main() {
         double pred = funk.clip(predicted[i]+base,1,5);
         double actual = ratings.testRatings[i].value + base;
 
-        total += fabs(pred - actual);
-        total2 += fabs(base - actual);
+        total += fabs(pred - actual)*fabs(pred - actual);
+        total2 += fabs(base - actual)*fabs(pred - actual);
 
         if(i%1000 == 0){
             cout << pred << " | " << actual << " | " << base << endl;
         }
     }
-    cout << "predicted rmse: " << total/ratings.testRatings.size() << endl;
-    cout << "baseline rmse: " << total2/ratings.testRatings.size() << endl;
+    cout << "predicted rmse: " << sqrt(total/ratings.testRatings.size()) << endl;
+    cout << "baseline rmse: " << sqrt(total2/ratings.testRatings.size()) << endl;
 
     return 0;
 }
